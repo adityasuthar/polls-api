@@ -13,9 +13,75 @@ from .serializers import (
     VoteSerializer,
     QuestionResultPageSerializer,
     QuestionDetailPageSerializer,
+    QuestionListPageSerializer,
 )
 import json
 from django.shortcuts import get_object_or_404
+from rest_framework.views import APIView
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from django.utils.timezone import now
+from datetime import timedelta
+
+# class QuestionsView(APIView):
+#     def get(self, request, *args, **kwargs):
+#         questions = Question.objects.all()
+#         serializer = QuestionDetailPageSerializer(questions, many=True)
+#         return Response(serializer.data)
+
+#     def post(self, request, *args, **kwargs):
+#         serializer = QuestionDetailPageSerializer(data=request.data)
+#         if serializer.is_valid():
+#             question = serializer.save()
+#             serializer = QuestionDetailPageSerializer(question)
+#             return Response(serializer.data, status=status.HTTP_201_CREATED)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# instead of upper class we use this one
+class QuestionsView(ListCreateAPIView):
+    # queryset = Question.objects.all()
+    # serializer_class = QuestionDetailPageSerializer
+
+    def get_queryset(self):
+        last_two_days = now() - timedelta(days=2)
+        return Question.objects.filter(pub_date__gt=last_two_days)
+
+    def get_serializer_class(self):
+        if self.request.method == "GET":
+            return QuestionListPageSerializer
+        else:
+            return QuestionDetailPageSerializer
+
+
+class QuestionDetailView(RetrieveUpdateDestroyAPIView):
+    serializer_class = QuestionDetailPageSerializer
+    lookup_url_kwarg = "question_id"
+    lookup_field = "question_text"
+
+    # queryset = Question.objects.all()
+    def get_queryset(self):
+        last_two_days = now() - timedelta(days=2)
+        return Question.objects.filter(pub_date__gt=last_two_days)
+
+
+class QuestionDetailView(APIView):
+    def get(self, request, *args, **kwargs):
+        question = get_object_or_404(Question, pk=kwargs["question_id"])
+        serializer = QuestionDetailPageSerializer(question)
+        return Response(serializer.data)
+
+    def patch(self, request, *args, **kwargs):
+        question = get_object_or_404(Question, pk=kwargs["question_id"])
+        serializer = QuestionDetailPageSerializer(data=request.data)
+        if serializer.is_valid():
+            question = serializer.save()
+            return Response(QuestionDetailPageSerializer(question).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, *args, **kwargs):
+        question = get_object_or_404(Question, pk=kwargs["question_id"])
+        question.delete()
+        return Response("Question Deleted", status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["GET", "POST"])
@@ -33,7 +99,7 @@ def questions_view(request):
             # return HttpResponse("Question created", status=201)
             question = serializer.save()
             return Response(
-                QuestionDetailPageSerializer(question).data,
+                QuestionListPageSerializer(question).data,
                 status=status.HTTP_201_CREATED,
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -58,11 +124,13 @@ def question_detail_view(request, question_id):
         serializer = QuestionDetailPageSerializer(question)
         return Response(serializer.data)
     elif request.method == "PATCH":
-        serializer = QuestionDetailPageSerializer(
+        serializer = QuestionListPageSerializer(
             question, data=request.data, partial=True
         )
         if serializer.is_valid():
-            return Response(QuestionDetailPageSerializer(question).data)
+            question = serializer.save()
+            serializer = QuestionListPageSerializer(question)
+            return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     elif request.method == "DELETE":
         question.delete()

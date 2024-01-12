@@ -2,12 +2,53 @@ from rest_framework import serializers
 from .models import Question, Choice
 
 
-class ChoiceSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
-    choice_text = serializers.CharField(max_length=200)
+class QuestionChoiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Choice
+        fields = ("id", "choice_text")
+
+
+class ChoiceSerializer(serializers.ModelSerializer):
+    # id = serializers.IntegerField(read_only=True)
+    # choice_text = serializers.CharField(max_length=200)
+
+    # def create(self, validated_data):
+    #     return Choice.objects.create(**validated_data)
+
+    class Meta:
+        model = Choice
+        fields = ("choice_text",)
+
+
+class QuestionDetailPageSerializer(serializers.ModelSerializer):
+    choices = ChoiceSerializer(many=True, read_only=True)
+    was_published_recently = serializers.BooleanField(read_only=True)
+    choice_set = QuestionChoiceSerializer(read_only=True, many=True)
+
+    class Meta:
+        model = Question
+        fields = "__all__"
+
+
+class QuestionListPageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Question
+        fields = "__all__"
+
+    was_published_recently = serializers.BooleanField(read_only=True)
+
+
+class QuestionDetailPageSerializer(QuestionListPageSerializer):
+    choice_set = QuestionChoiceSerializer(read_only=True)
 
     def create(self, validated_data):
-        return Choice.objects.create(**validated_data)
+        choice_validated_data = validated_data.pop("choice_set")
+        question = Question.objects.all(**validated_data)
+        choice_set_serializer = self.fields("choice_set")
+        for each in choice_validated_data:
+            each["question"] = question
+        choices = ChoiceSerializer.create(choice_validated_data)
+        return question
 
 
 class QuestionListPageSerializer(serializers.Serializer):
