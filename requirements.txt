@@ -24,6 +24,3 @@ tomli==2.0.1
 traitlets==5.14.1
 typing_extensions==4.9.0
 wcwidth==0.2.13
-gunicorn
-psycopg2-binary
-whitenoise
