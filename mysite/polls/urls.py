@@ -4,7 +4,7 @@ from . import views
 from . import apiviews
 
 urlpatterns = [
-    path("", views.index, name="index"),
+    # path("", views.index, name="index"),
     # path("questions/", apiviews.questions_view, name="questions_view"),
     # path(
     #     "questions/<int:question_id>/",
